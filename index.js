@@ -7,25 +7,28 @@ app.use(bodyParser.json());
 const PAGE_TOKEN    = process.env.PAGE_TOKEN;
 const VERIFY_TOKEN  = process.env.VERIFY_TOKEN;
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
-const SYS_PROMPT    = process.env.SYS_PROMPT || "Та Centro компанийн AI туслагч. Монгол хэлээр эелдэгээр хариулна.";
+const SYS_PROMPT    = process.env.SYS_PROMPT || "Та Portal.mn компанийн AI туслагч. Монгол хэлээр эелдэгээр хариулна.";
 
-// Webhook баталгаажуулалт
 app.get("/webhook", (req, res) => {
   if (req.query["hub.verify_token"] === VERIFY_TOKEN) {
     res.send(req.query["hub.challenge"]);
   } else res.sendStatus(403);
 });
 
-// Мессеж хүлээн авах
 app.post("/webhook", async (req, res) => {
   res.sendStatus(200);
   const body = req.body;
   if (body.object !== "page") return;
   for (const entry of body.entry || []) {
     for (const event of entry.messaging || []) {
-      if (!event.message || event.message.is_echo) continue;
+      if (event.message && event.message.is_echo) continue;
       const senderId = event.sender.id;
-      const text = event.message.text;
+      let text = "";
+      if (event.message && event.message.text) {
+        text = event.message.text;
+      } else if (event.postback) {
+        text = event.postback.payload || "Сайн байна уу!";
+      }
       if (!text) continue;
       try {
         const reply = await askClaude(text);
